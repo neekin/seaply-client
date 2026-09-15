@@ -18,3 +18,181 @@ body {
   background: #d6dce4;
   border-radius: 3px;
 }
+
+/* ===== 登录页 ===== */
+.login-root {
+  height: 100%;
+  display: flex;
+  background: #fff;
+  overflow: hidden;
+}
+
+/* 左：品牌展示区 */
+.login-brand {
+  position: relative;
+  flex: 0 0 44%;
+  max-width: 540px;
+  color: #fff;
+  background: radial-gradient(125% 125% at 0% 0%, #1e3a8a 0%, #3b5bdb 48%, #4c6ef5 100%);
+  padding: 56px 48px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  overflow: hidden;
+}
+.login-brand__glow {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+.login-brand__glow--1 {
+  width: 340px;
+  height: 340px;
+  right: -120px;
+  top: -130px;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.22), transparent 70%);
+}
+.login-brand__glow--2 {
+  width: 280px;
+  height: 280px;
+  left: -100px;
+  bottom: -120px;
+  background: radial-gradient(circle, rgba(96, 165, 250, 0.32), transparent 70%);
+}
+.login-brand__logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  position: relative;
+  z-index: 1;
+}
+.login-brand__logo-text {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+.login-brand__hero {
+  position: relative;
+  z-index: 1;
+  margin: auto 0;
+}
+.login-brand__title {
+  font-size: 34px;
+  line-height: 1.3;
+  font-weight: 700;
+  margin: 0 0 14px;
+}
+.login-brand__subtitle {
+  font-size: 15px;
+  line-height: 1.7;
+  opacity: 0.82;
+  margin: 0;
+  max-width: 360px;
+}
+.login-brand__features {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 30px;
+}
+.login-feature {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+}
+.login-feature__icon {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.16);
+}
+.login-brand__foot {
+  position: relative;
+  z-index: 1;
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+/* 右：表单区 */
+.login-panel {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  background: #fff;
+}
+.login-card {
+  width: 360px;
+  max-width: 100%;
+}
+.login-card__brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 30px;
+}
+.login-card__name {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1f2d3d;
+}
+.login-card__ver {
+  font-size: 11px;
+  color: #9aa4b2;
+  border: 1px solid #e6e9ef;
+  border-radius: 6px;
+  padding: 1px 6px;
+}
+.login-card__title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #1f2d3d;
+  margin: 0 0 6px;
+}
+.login-card__hint {
+  font-size: 13px;
+  color: #79828f;
+  margin: 0 0 26px;
+}
+.login-btn {
+  width: 100%;
+  height: 44px;
+  border: none;
+  border-radius: 10px;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  cursor: pointer;
+  background: linear-gradient(135deg, #3b5bdb 0%, #4c6ef5 100%);
+  box-shadow: 0 6px 16px rgba(59, 91, 219, 0.28);
+  transition: transform 0.12s ease, box-shadow 0.12s ease, opacity 0.12s ease;
+}
+.login-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgba(59, 91, 219, 0.34);
+}
+.login-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+.login-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+.login-adv {
+  margin-top: 16px;
+}
+
+/* 窄窗口隐藏品牌区，避免拥挤 */
+@media (max-width: 760px) {
+  .login-brand {
+    display: none;
+  }
+}
