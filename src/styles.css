@@ -1,0 +1,20 @@
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei',
+    sans-serif;
+}
+
+/* 消息区细滚动条 */
+.msg-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.msg-scroll::-webkit-scrollbar-thumb {
+  background: #d6dce4;
+  border-radius: 3px;
+}

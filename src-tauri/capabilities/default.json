@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "桌面客户端默认能力：基础窗口 + 系统通知",
+  "windows": ["main"],
+  "permissions": ["core:default", "notification:default"]
+}
