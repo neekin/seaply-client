@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { App as AntApp, Button, Empty, Input, Tag, Typography, Spin, Popover, Tabs, Select } from 'antd'
 import type { TextAreaRef } from 'antd/es/input/TextArea'
@@ -349,11 +349,13 @@ export default function ChatPanel({ conversation, messages, onSent }: Props) {
               const prevDay = dayOf(messages[i - 1]?.created_at)
               const curDay = dayOf(m.created_at)
               const sep = prevDay !== curDay ? <div className="day-sep">{curDay}</div> : null
+              // 必须用 Fragment 包：若用 <div> 当包裹层，气泡的 align-self 会失效
+              // （普通 block 不是 flex 容器），导致本该靠右的气泡被拉伸后靠左
               return (
-                <div key={m.id}>
+                <Fragment key={m.id}>
                   {sep}
                   <Bubble m={m} grouped={i > 0 && messages[i - 1].direction === m.direction} />
-                </div>
+                </Fragment>
               )
             })}
           </div>
