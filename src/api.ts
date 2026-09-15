@@ -1,4 +1,4 @@
-import type { ChatMessage, Conversation, LoginResponse } from './types'
+import type { ChatMessage, Conversation, LoginResponse, CannedResponse, MediaAsset } from './types'
 
 const BASE_KEY = 'seaply:base_url'
 const TOKEN_KEY = 'seaply:token'
@@ -74,18 +74,31 @@ export const api = {
   send: (
     conversationId: number,
     body: string,
-    opts?: { preTranslated?: string; targetLocale?: string },
+    opts?: { preTranslated?: string; targetLocale?: string; mediaAssetId?: number; caption?: string },
   ) => {
-    const payload: Record<string, unknown> = { body }
-    if (opts?.preTranslated) {
-      payload.pre_translated = opts.preTranslated
-      payload.target_locale = opts.targetLocale
+    const payload: Record<string, unknown> = {}
+    if (opts?.mediaAssetId) {
+      payload.media_asset_id = opts.mediaAssetId
+      const caption = (opts.caption ?? body).trim()
+      if (caption) payload.caption = caption
+    } else {
+      payload.body = body
+      if (opts?.preTranslated) {
+        payload.pre_translated = opts.preTranslated
+        payload.target_locale = opts.targetLocale
+      }
     }
     return request<ChatMessage>(`/api/v1/conversations/${conversationId}/messages`, {
       method: 'POST',
       body: JSON.stringify(payload),
     })
   },
+
+  // 话术库（按分类分组：{ 分类: CannedResponse[] }）；客户端只读选用
+  cannedResponses: () => request<Record<string, CannedResponse[]>>('/api/v1/canned_responses'),
+
+  // 媒体库列表；客户端只读选用 + 发送（media_asset_id 直发）
+  mediaAssets: () => request<MediaAsset[]>('/api/v1/media_assets'),
 
   // 边写边译预览：同步返回译文，不落库、不发送
   translatePreview: (conversationId: number, text: string, targetLocale: string) =>

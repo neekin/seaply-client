@@ -37,3 +37,21 @@ export type LoginResponse = {
   user: LoginUser
   tenant: { id: number; name: string | null }
 }
+
+// 话术库条目（按 category 分组返回）
+export type CannedResponse = {
+  id: number
+  title: string
+  content: string
+  category: string | null
+}
+
+// 媒体库条目；url 为图片缩略图（仅 image 有值），video/file 用 kind 决定展示图标
+export type MediaAsset = {
+  id: number
+  kind: string
+  name: string
+  size: string | null
+  url: string | null
+  created_at: string | null
+}

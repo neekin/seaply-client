@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import { App as AntApp, Button, Empty, Input, Tag, Typography, Switch, Spin } from 'antd'
-import { SendOutlined } from '@ant-design/icons'
+import { App as AntApp, Button, Empty, Input, Tag, Typography, Switch, Spin, Drawer, List, Image } from 'antd'
+import { SendOutlined, FileTextOutlined, PictureOutlined, FileOutlined } from '@ant-design/icons'
 import { api } from '../api'
-import type { ChatMessage, Conversation } from '../types'
+import type { ChatMessage, Conversation, CannedResponse, MediaAsset } from '../types'
 
 type Props = {
   conversation: Conversation
@@ -65,6 +65,13 @@ export default function ChatPanel({ conversation, messages, onSent }: Props) {
   const lastPreviewed = useRef<string>('')
   const listRef = useRef<HTMLDivElement>(null)
 
+  // 话术库 / 媒体库：只读选用（增删改在 web 后台）
+  const [cannedOpen, setCannedOpen] = useState(false)
+  const [mediaOpen, setMediaOpen] = useState(false)
+  const [canned, setCanned] = useState<Record<string, CannedResponse[]>>({})
+  const [media, setMedia] = useState<MediaAsset[]>([])
+  const [drawerLoading, setDrawerLoading] = useState(false)
+
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight })
   }, [messages, conversation.id])
@@ -122,6 +129,52 @@ export default function ChatPanel({ conversation, messages, onSent }: Props) {
     }
   }
 
+  // 话术库：打开即拉取（已缓存），点选把 content 填入输入框
+  const openCanned = async () => {
+    setCannedOpen(true)
+    if (Object.keys(canned).length) return
+    setDrawerLoading(true)
+    try {
+      setCanned(await api.cannedResponses())
+    } catch (e) {
+      feedback.error((e as Error).message)
+    } finally {
+      setDrawerLoading(false)
+    }
+  }
+  const pickCanned = (c: CannedResponse) => {
+    setText(c.content)
+    setPreview(null)
+    lastPreviewed.current = ''
+    setCannedOpen(false)
+  }
+
+  // 媒体库：打开即拉取（已缓存），点选直接发送
+  const openMedia = async () => {
+    setMediaOpen(true)
+    if (media.length) return
+    setDrawerLoading(true)
+    try {
+      setMedia(await api.mediaAssets())
+    } catch (e) {
+      feedback.error((e as Error).message)
+    } finally {
+      setDrawerLoading(false)
+    }
+  }
+  const sendMedia = async (a: MediaAsset) => {
+    if (sending) return
+    setSending(true)
+    setMediaOpen(false)
+    try {
+      onSent(await api.send(conversation.id, '', { mediaAssetId: a.id }))
+    } catch (e) {
+      feedback.error((e as Error).message)
+    } finally {
+      setSending(false)
+    }
+  }
+
   return (
     <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
       <div
@@ -140,6 +193,12 @@ export default function ChatPanel({ conversation, messages, onSent }: Props) {
           {conversation.visitor_locale}
         </Typography.Text>
         {conversation.ai_handoff ? <Tag color="gold">已转人工</Tag> : null}
+        <Button size="small" icon={<FileTextOutlined />} onClick={openCanned}>
+          话术
+        </Button>
+        <Button size="small" icon={<PictureOutlined />} onClick={openMedia}>
+          媒体库
+        </Button>
         <span style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 'auto' }}>
           <Typography.Text type="secondary" style={{ fontSize: 12 }}>
             边写边译
@@ -205,6 +264,65 @@ export default function ChatPanel({ conversation, messages, onSent }: Props) {
           </Button>
         </div>
       </div>
+
+      <Drawer title="话术库" open={cannedOpen} onClose={() => setCannedOpen(false)} width={360}>
+        {drawerLoading ? (
+          <div style={{ textAlign: 'center', padding: 40 }}>
+            <Spin />
+          </div>
+        ) : Object.keys(canned).length === 0 ? (
+          <Empty description="暂无话术" />
+        ) : (
+          Object.entries(canned).map(([cat, items]) => (
+            <div key={cat || '_'} style={{ marginBottom: 12 }}>
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                {cat || '未分类'}
+              </Typography.Text>
+              <List
+                size="small"
+                dataSource={items}
+                renderItem={(c) => (
+                  <List.Item style={{ cursor: 'pointer' }} onClick={() => pickCanned(c)} title="点击填入输入框">
+                    <List.Item.Meta title={c.title} description={c.content} />
+                  </List.Item>
+                )}
+              />
+            </div>
+          ))
+        )}
+      </Drawer>
+
+      <Drawer title="媒体库" open={mediaOpen} onClose={() => setMediaOpen(false)} width={420}>
+        {drawerLoading ? (
+          <div style={{ textAlign: 'center', padding: 40 }}>
+            <Spin />
+          </div>
+        ) : media.length === 0 ? (
+          <Empty description="媒体库为空" />
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+            {media.map((a) => (
+              <div
+                key={a.id}
+                onClick={() => sendMedia(a)}
+                title={`${a.name}（点击发送）`}
+                style={{ cursor: 'pointer', border: '1px solid #eee', borderRadius: 8, overflow: 'hidden', background: '#fff' }}
+              >
+                <div style={{ height: 72, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5' }}>
+                  {a.url ? (
+                    <Image src={a.url} alt={a.name} preview={false} style={{ width: '100%', height: 72, objectFit: 'cover' }} />
+                  ) : (
+                    <FileOutlined style={{ fontSize: 24, color: '#999' }} />
+                  )}
+                </div>
+                <div style={{ padding: '4px 6px', fontSize: 11, color: '#666', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {a.name}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Drawer>
     </div>
   )
 }
