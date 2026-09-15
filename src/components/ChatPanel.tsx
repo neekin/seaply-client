@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import { App as AntApp, Button, Empty, Input, Tag, Typography, Spin, Popover, Tabs, Select, Space } from 'antd'
+import { App as AntApp, Button, Empty, Input, Tag, Typography, Spin, Popover, Tabs, Select } from 'antd'
 import type { TextAreaRef } from 'antd/es/input/TextArea'
 import {
-  SendOutlined,
   BoldOutlined,
   ItalicOutlined,
   StrikethroughOutlined,
@@ -13,6 +12,8 @@ import {
   FileImageOutlined,
   TranslationOutlined,
   FileOutlined,
+  CheckOutlined,
+  CloseCircleOutlined,
 } from '@ant-design/icons'
 import { api } from '../api'
 import type { ChatMessage, Conversation, CannedResponse, MediaAsset } from '../types'
@@ -35,7 +36,6 @@ const MSG_TYPE_LABEL: Record<string, string> = {
 }
 
 const SEND_STATUS: Record<string, string> = {
-  pending: '已发送',
   sent: '已发送',
   delivered: '已送达',
   read: '已读',
@@ -61,6 +61,19 @@ const MARKERS: Array<{ key: string; icon: ReactNode; marker: string; title: stri
 
 const EMOJIS = ['😊', '👍', '🙏', '❤️', '😂', '🎉', '🔥', '✅', '💡', '👏', '🤝', '📞', '⏰', '💰', '📦', '✈️']
 
+// 发送状态勾选：单勾=已发送，双灰勾=已送达，双蓝勾=已读
+function StatusTicks({ status }: { status: string }) {
+  if (status === 'pending') return <Spin size="small" />
+  if (status === 'failed') return <CloseCircleOutlined style={{ color: '#ff4d4f' }} />
+  const read = status === 'read'
+  return (
+    <span className={`tick${read ? ' tick--read' : ''}`}>
+      <CheckOutlined />
+      <CheckOutlined style={{ marginLeft: -6 }} />
+    </span>
+  )
+}
+
 // 气泡：坐席视角——自己发的看原文（下方灰字是发给访客的译文），访客消息看译文
 function Bubble({ m, grouped = false }: { m: ChatMessage; grouped?: boolean }) {
   const outbound = m.direction === 'outbound'
@@ -71,44 +84,36 @@ function Bubble({ m, grouped = false }: { m: ChatMessage; grouped?: boolean }) {
     : m.body_translated
       ? (m.body_original ?? null)
       : null
-  // 仅最近 3 分钟内的 pending 才显示转圈，避免历史卡单永远转
-  const pendingFresh =
-    m.status === 'pending' &&
-    outbound &&
-    !!m.created_at &&
-    Date.now() - new Date(m.created_at).getTime() < 3 * 60_000
-
+  const isMedia = mediaUrl && m.msg_type && m.msg_type !== 'text'
   const nonTextPlaceholder = !mediaUrl && m.msg_type && m.msg_type !== 'text'
 
+  const parts: string[] = []
+  if (m.created_at) {
+    parts.push(new Date(m.created_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }))
+  }
+  if (outbound) {
+    parts.push(SEND_STATUS[m.status === 'pending' ? 'sent' : m.status] ?? m.status)
+  }
+  if (m.generated_by === 'ai') parts.push('AI')
+
   return (
-    <div style={{ alignSelf: outbound ? 'flex-end' : 'flex-start', maxWidth: '72%', marginTop: grouped ? 0 : 8 }}>
-      <div
-        style={{
-          padding: '8px 12px',
-          borderRadius: outbound ? '12px 4px 12px 12px' : '4px 12px 12px 12px',
-          background: outbound ? '#d9fdd3' : '#fff',
-          border: outbound ? 'none' : '0.5px solid #f0f0f0',
-          color: '#1a1a1a',
-          fontSize: 13,
-          lineHeight: 1.6,
-          boxShadow: '0 1px 1px rgba(0,0,0,0.06)',
-          wordBreak: 'break-word',
-        }}
-      >
-        {m.msg_type && m.msg_type !== 'text' && mediaUrl ? (
+    <div className={`bubble ${outbound ? 'bubble--out' : 'bubble--in'}`} style={grouped ? undefined : { marginTop: 10 }}>
+      <div className="bubble__box">
+        {isMedia ? (
           m.msg_type === 'image' || m.msg_type === 'sticker' ? (
             <img
               src={mediaUrl}
               alt={m.msg_type === 'sticker' ? '贴纸' : '图片'}
-              style={{ maxWidth: 240, borderRadius: 6, display: 'block', marginBottom: m.body_original ? 6 : 0 }}
+              className="bubble__media"
+              style={m.body_original ? { marginBottom: 4 } : undefined}
             />
           ) : m.msg_type === 'video' ? (
-            <video src={mediaUrl} controls style={{ maxWidth: 240, borderRadius: 6, display: 'block' }} />
+            <video src={mediaUrl} controls className="bubble__media" />
           ) : m.msg_type === 'audio' || m.msg_type === 'voice' ? (
             <audio src={mediaUrl} controls style={{ display: 'block' }} />
           ) : (
-            <a href={mediaUrl} target="_blank" rel="noreferrer" style={{ display: 'block', marginBottom: m.body_original ? 6 : 0, color: '#1677ff' }}>
-              [文件] 点击下载
+            <a href={mediaUrl} target="_blank" rel="noreferrer" className="bubble__file">
+              <FileOutlined /> 点击下载文件
             </a>
           )
         ) : null}
@@ -117,36 +122,15 @@ function Bubble({ m, grouped = false }: { m: ChatMessage; grouped?: boolean }) {
         ) : (
           <div>{MSG_TYPE_LABEL[m.msg_type] ?? m.msg_type}</div>
         )}
-        {secondary && secondary !== primary ? (
-          <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>{secondary}</div>
-        ) : null}
+        {secondary && secondary !== primary ? <div className="bubble__trans">{secondary}</div> : null}
       </div>
-      {(() => {
-        const parts: string[] = []
-        if (m.created_at) {
-          parts.push(new Date(m.created_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }))
-        }
-        if (outbound) {
-          parts.push(pendingFresh ? '发送中' : (SEND_STATUS[m.status === 'pending' ? 'sent' : m.status] ?? m.status))
-        }
-        if (m.generated_by === 'ai') parts.push('AI')
-        if (!parts.length) return null
-        return (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 4,
-              marginInline: 4,
-              marginTop: 2,
-              justifyContent: outbound ? 'flex-end' : 'flex-start',
-            }}
-          >
-            {pendingFresh ? <Spin size="small" /> : null}
-            <span style={{ fontSize: 11, color: '#999' }}>{parts.join(' · ')}</span>
-          </div>
-        )
-      })()}
+      {parts.length ? (
+        <div className={`bubble__meta${outbound ? ' bubble__meta--out' : ''}`}>
+          {outbound ? <StatusTicks status={m.status} /> : null}
+          <span>{parts.join(' · ')}</span>
+          {m.generated_by === 'ai' ? <span className="ai-tag">AI</span> : null}
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -333,55 +317,57 @@ export default function ChatPanel({ conversation, messages, onSent }: Props) {
     ),
   }))
 
+  const channelLabel = conversation.channel === 'whatsapp' ? 'WhatsApp' : '网页聊天'
+  const dayOf = (iso?: string) =>
+    iso ? new Date(iso).toLocaleDateString('zh-CN', { month: 'long', day: 'numeric' }) : ''
+
   return (
-    <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-      <div
-        style={{
-          flexShrink: 0,
-          padding: '10px 16px',
-          borderBottom: '1px solid #eee',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-        }}
-      >
-        <Typography.Text strong>{conversation.visitor_name}</Typography.Text>
-        <Tag color={conversation.channel === 'whatsapp' ? 'green' : 'blue'}>
-          {conversation.channel === 'whatsapp' ? 'WhatsApp' : '网页聊天'}
-        </Tag>
-        <Tag>{conversation.visitor_locale}</Tag>
-        {conversation.ai_handoff ? <Tag color="gold">已转人工</Tag> : null}
+    <div className="chat">
+      <div className="chat-header">
+        <div className={`chat-header__avatar${conversation.channel === 'whatsapp' ? ' chat-header__avatar--wa' : ''}`}>
+          {(conversation.visitor_name || '?').slice(0, 1).toUpperCase()}
+        </div>
+        <div className="chat-header__meta">
+          <div className="chat-header__name">{conversation.visitor_name}</div>
+          <div className="chat-header__status">
+            {channelLabel} · {conversation.visitor_locale}
+          </div>
+        </div>
+        <div className="chat-header__tags">
+          <Tag color={conversation.channel === 'whatsapp' ? 'green' : 'blue'}>{channelLabel}</Tag>
+          <Tag>{conversation.visitor_locale}</Tag>
+          {conversation.ai_handoff ? <Tag color="gold">已转人工</Tag> : null}
+        </div>
       </div>
 
-      <div
-        ref={listRef}
-        className="msg-scroll"
-        style={{
-          flex: 1,
-          overflowY: 'auto',
-          padding: 16,
-          background: '#f5f5f5',
-          display: 'flex',
-          flexDirection: 'column',
-        }}
-      >
+      <div ref={listRef} className="chat-msgs">
         {messages.length === 0 ? (
           <Empty description="暂无消息" style={{ margin: 'auto' }} />
         ) : (
-          <div style={{ width: '100%', maxWidth: 760, margin: '0 auto', display: 'flex', flexDirection: 'column' }}>
-            {messages.map((m, i) => (
-              <Bubble key={m.id} m={m} grouped={i > 0 && messages[i - 1].direction === m.direction} />
-            ))}
+          <div className="chat-msgs__inner">
+            {messages.map((m, i) => {
+              const prevDay = dayOf(messages[i - 1]?.created_at)
+              const curDay = dayOf(m.created_at)
+              const sep = prevDay !== curDay ? <div className="day-sep">{curDay}</div> : null
+              return (
+                <div key={m.id}>
+                  {sep}
+                  <Bubble m={m} grouped={i > 0 && messages[i - 1].direction === m.direction} />
+                </div>
+              )
+            })}
           </div>
         )}
       </div>
 
-      <div style={{ flexShrink: 0, padding: 12, borderTop: '1px solid #eee', display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <Space size={2} wrap>
+      <div className="chat-input">
+        <div className="chat-toolbar">
           {MARKERS.map((it) => (
-            <Button key={it.key} size="small" type="text" title={it.title} icon={it.icon} onClick={() => wrap(it.marker)} />
+            <button key={it.key} className="chat-tool" title={it.title} onClick={() => wrap(it.marker)}>
+              {it.icon}
+            </button>
           ))}
-          <span style={{ width: 1, height: 18, background: '#e8e8e8', margin: '0 4px' }} />
+          <span className="chat-divider" />
           <Popover
             trigger="click"
             open={emojiOpen}
@@ -389,14 +375,16 @@ export default function ChatPanel({ conversation, messages, onSent }: Props) {
             content={
               <div style={{ width: 248, display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: 2 }}>
                 {EMOJIS.map((e) => (
-                  <Button key={e} size="small" type="text" style={{ fontSize: 18, padding: 2 }} onClick={() => insertEmoji(e)}>
+                  <button key={e} className="chat-tool" style={{ fontSize: 18 }} onClick={() => insertEmoji(e)}>
                     {e}
-                  </Button>
+                  </button>
                 ))}
               </div>
             }
           >
-            <Button size="small" type="text" icon={<SmileOutlined />} title="表情" />
+            <button className="chat-tool" title="表情">
+              <SmileOutlined />
+            </button>
           </Popover>
           <Popover
             trigger="click"
@@ -416,9 +404,9 @@ export default function ChatPanel({ conversation, messages, onSent }: Props) {
               </div>
             }
           >
-            <Button size="small" icon={<CommentOutlined />}>
-              话术
-            </Button>
+            <button className="chat-tool" title="话术库">
+              <CommentOutlined />
+            </button>
           </Popover>
           <Popover
             trigger="click"
@@ -458,25 +446,24 @@ export default function ChatPanel({ conversation, messages, onSent }: Props) {
               </div>
             }
           >
-            <Button size="small" icon={<FileImageOutlined />}>
-              媒体
-            </Button>
+            <button className="chat-tool" title="媒体库">
+              <FileImageOutlined />
+            </button>
           </Popover>
           <span style={{ marginLeft: 'auto' }}>
-            <Button
-              size="small"
-              type={liveTranslate ? 'primary' : 'text'}
-              icon={<TranslationOutlined />}
+            <button
+              className={`chat-tool${liveTranslate ? ' chat-tool--on' : ''}`}
+              title="边写边译"
               onClick={() => setLiveTranslate((v) => !v)}
             >
-              翻译
-            </Button>
+              <TranslationOutlined />
+            </button>
           </span>
-        </Space>
+        </div>
 
         {liveTranslate ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, background: '#f0f7ff', borderRadius: 6, padding: '6px 10px' }}>
-            <Space size={4} align="center" wrap>
+          <div className="chat-trans">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 2 }}>
               <Typography.Text type="secondary" style={{ fontSize: 12 }}>
                 将输入内容翻译为
               </Typography.Text>
@@ -489,7 +476,7 @@ export default function ChatPanel({ conversation, messages, onSent }: Props) {
                 style={{ minWidth: 96 }}
                 popupMatchSelectWidth={false}
               />
-            </Space>
+            </div>
             <span style={{ fontSize: 13, color: previewing ? '#999' : '#555' }}>
               {previewing ? '翻译中…' : (preview || '译文将在此显示')}
             </span>
@@ -509,10 +496,10 @@ export default function ChatPanel({ conversation, messages, onSent }: Props) {
             }
           }}
         />
-        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-          <Button type="primary" icon={<SendOutlined />} loading={sending} onClick={() => void send()}>
-            发送
-          </Button>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+          <button className="chat-send-btn" disabled={sending || !text.trim()} onClick={() => void send()}>
+            {sending ? '发送中…' : '发送'}
+          </button>
         </div>
       </div>
     </div>

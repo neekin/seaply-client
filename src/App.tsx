@@ -158,20 +158,27 @@ export default function App() {
 
   return (
     <Layout style={{ height: '100%' }}>
-      <Layout.Header
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          background: '#fff',
-          borderBottom: '1px solid #eee',
-          paddingInline: 16,
-        }}
-      >
-        <Typography.Text strong>Seaply 客服工作台</Typography.Text>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-            {user ? `${user.name}` : ''}
+      <Layout.Header className="app-header">
+        <div className="app-header__brand">
+          <svg width="26" height="26" viewBox="0 0 32 32" aria-hidden>
+            <rect width="32" height="32" rx="9" fill="#fff" />
+            <path
+              d="M9 13a5.5 5.5 0 0 1 5.5-5.5h3A5.5 5.5 0 0 1 23 13v3.5a5.5 5.5 0 0 1-5.5 5.5H14l-4 3v-3h-.5A5.5 5.5 0 0 1 9 16.5V13z"
+              fill="url(#ahg)"
+            />
+            <defs>
+              <linearGradient id="ahg" x1="9" y1="7" x2="23" y2="25" gradientUnits="userSpaceOnUse">
+                <stop stopColor="#4c6ef5" />
+                <stop offset="1" stopColor="#3b5bdb" />
+              </linearGradient>
+            </defs>
+          </svg>
+          <span className="app-header__name">Seaply Desk</span>
+        </div>
+        <div className="app-header__user">
+          <span className="app-avatar">{user?.name?.slice(0, 1) ?? 'U'}</span>
+          <Typography.Text type="secondary" style={{ fontSize: 13 }}>
+            {user?.name}
           </Typography.Text>
           <Button size="small" onClick={() => void handleLogout()}>
             退出

@@ -19,6 +19,7 @@ export type Conversation = {
   channel: string
   unread_count: number
   last_message_at: string | null
+  last_message_preview?: string | null
   assigned_user_id: number | null
   ai_paused: boolean
   ai_handoff: boolean
