@@ -1,6 +1,10 @@
 html,
 body,
-#root {
+#root,
+/* antd <App> 会渲染一层 .ant-app 包裹 div，默认 height:auto，
+   会截断 height:100% 链条，导致整页高度塌缩成内容高度
+   （大窗口白底留白、小窗口溢出被裁切）。显式撑满。 */
+.ant-app {
   height: 100%;
   margin: 0;
 }
