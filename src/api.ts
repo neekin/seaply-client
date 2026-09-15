@@ -57,11 +57,14 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 export const api = {
-  login: (account: string, password: string) =>
-    request<LoginResponse>('/api/v1/auth/login', {
+  login: async (account: string, password: string) => {
+    const res = await request<LoginResponse>('/api/v1/auth/login', {
       method: 'POST',
       body: JSON.stringify({ account, password }),
-    }),
+    })
+    setToken(res.token)
+    return res
+  },
 
   conversations: () => request<Conversation[]>('/api/v1/conversations'),
 
