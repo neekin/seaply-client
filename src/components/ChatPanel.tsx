@@ -139,6 +139,8 @@ export default function ChatPanel({ conversation, messages, onSent }: Props) {
   const { message: feedback } = AntApp.useApp()
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
+  // 直接上传的附件（粘贴截图 / 点选文件），发送后清掉；不入库媒体库
+  const [pendingFile, setPendingFile] = useState<File | null>(null)
   const [liveTranslate, setLiveTranslate] = useState(false)
   const [targetLocale, setTargetLocale] = useState(conversation.visitor_locale || 'en')
   const [preview, setPreview] = useState<string | null>(null)
@@ -191,13 +193,17 @@ export default function ChatPanel({ conversation, messages, onSent }: Props) {
   // 乐观发送：先清空输入框，失败再把内容还回来
   const send = async () => {
     const body = text.trim()
-    if (!body || sending) return
+    if ((!body && !pendingFile) || sending) return
     setText('')
     setSending(true)
-    const opts = liveTranslate && preview ? { preTranslated: preview, targetLocale } : undefined
+    const opts = {
+      ...(liveTranslate && preview ? { preTranslated: preview, targetLocale } : {}),
+      ...(pendingFile ? { file: pendingFile } : {}),
+    }
     try {
       onSent(await api.send(conversation.id, body, opts))
       setPreview(null)
+      setPendingFile(null)
       lastPreviewed.current = ''
     } catch (e) {
       setText(body)
@@ -485,12 +491,39 @@ export default function ChatPanel({ conversation, messages, onSent }: Props) {
           </div>
         ) : null}
 
+        {pendingFile ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6, fontSize: 12, color: '#555' }}>
+            <FileOutlined />
+            <span style={{ maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {pendingFile.name || '剪贴板截图'}
+            </span>
+            <button
+              className="chat-tool"
+              style={{ fontSize: 12 }}
+              title="移除附件"
+              onClick={() => setPendingFile(null)}
+            >
+              ✕
+            </button>
+          </div>
+        ) : null}
+
         <Input.TextArea
           ref={inputRef}
           value={text}
           onChange={(e) => setText(e.target.value)}
           autoSize={{ minRows: 2, maxRows: 6 }}
-          placeholder="输入回复，回车发送（Shift+回车换行）；支持 *粗体* _斜体_ ~删除线~ `等宽`"
+          placeholder="输入回复，回车发送（Shift+回车换行）；可直接粘贴截图发送"
+          onPaste={(e) => {
+            // 粘贴截图：取剪贴板里的图片作为附件
+            const file = Array.from(e.clipboardData?.items ?? [])
+              .find((it) => it.kind === 'file' && it.type.startsWith('image/'))
+              ?.getAsFile()
+            if (file) {
+              e.preventDefault()
+              setPendingFile(file)
+            }
+          }}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
               e.preventDefault()
@@ -499,7 +532,11 @@ export default function ChatPanel({ conversation, messages, onSent }: Props) {
           }}
         />
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
-          <button className="chat-send-btn" disabled={sending || !text.trim()} onClick={() => void send()}>
+          <button
+            className="chat-send-btn"
+            disabled={sending || (!text.trim() && !pendingFile)}
+            onClick={() => void send()}
+          >
             {sending ? '发送中…' : '发送'}
           </button>
         </div>

@@ -24,12 +24,14 @@ export function setToken(token: string | null): void {
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = getToken()
+  // 上传文件时不设 Content-Type，由浏览器自动补 multipart boundary
+  const isFormData = typeof FormData !== 'undefined' && init.body instanceof FormData
   let res: Response
   try {
     res = await fetch(`${getBaseUrl()}${path}`, {
       ...init,
       headers: {
-        'Content-Type': 'application/json',
+        ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...(init.headers || {}),
       },
@@ -74,8 +76,26 @@ export const api = {
   send: (
     conversationId: number,
     body: string,
-    opts?: { preTranslated?: string; targetLocale?: string; mediaAssetId?: number; caption?: string },
+    opts?: {
+      preTranslated?: string
+      targetLocale?: string
+      mediaAssetId?: number
+      caption?: string
+      file?: File
+    },
   ) => {
+    // 直接上传（粘贴截图 / 点选文件）：走 multipart，后端挂到消息上、不进媒体库
+    if (opts?.file) {
+      const fd = new FormData()
+      fd.append('file', opts.file)
+      const text = body.trim()
+      if (text) fd.append('body', text)
+      return request<ChatMessage>(`/api/v1/conversations/${conversationId}/messages`, {
+        method: 'POST',
+        body: fd,
+      })
+    }
+
     const payload: Record<string, unknown> = {}
     if (opts?.mediaAssetId) {
       payload.media_asset_id = opts.mediaAssetId
