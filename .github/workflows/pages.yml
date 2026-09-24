@@ -1,7 +1,7 @@
 name: Deploy download page
 
-# 把 download-page/ 部署到 GitHub Pages（gh-pages），
-# 地址：https://neekin.github.io/seaply-client/
+# 把 download-page/ 推到 gh-pages 分支（地址 https://neekin.github.io/seaply-client/）
+# 首次需到仓库 Settings → Pages → Source 选 “Deploy from a branch” → gh-pages / root
 on:
   push:
     branches: [main]
@@ -11,28 +11,18 @@ on:
   workflow_dispatch:
 
 permissions:
-  pages: write
-  id-token: write
-
-concurrency:
-  group: pages
-  cancel-in-progress: true
+  contents: write
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: 'download-page'
-
       - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./download-page
+          publish_branch: gh-pages
