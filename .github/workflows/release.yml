@@ -69,6 +69,6 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: 'Seaply Desk ${{ github.ref_name }}'
           releaseBody: '自动构建的桌面客户端安装包（macOS / Windows）'
-          releaseDraft: true
+          releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
