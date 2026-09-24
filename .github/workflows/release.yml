@@ -57,21 +57,3 @@ jobs:
           releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
-
-      # 构建失败时，把错误日志末尾写回仓库（公开仓库文件匿名可读），便于本地排查
-      - name: Upload build log on failure
-        if: failure()
-        shell: bash
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          echo "re-running build to capture log..."
-          npx tauri build ${{ matrix.args }} > /tmp/build.log 2>&1 || true
-          echo "---- last 200 lines ----"
-          tail -n 200 /tmp/build.log
-          CONTENT=$(tail -n 200 /tmp/build.log | base64 -w0)
-          curl -s -X PUT \
-            -H "Authorization: Bearer $GITHUB_TOKEN" \
-            -H "Accept: application/vnd.github+json" \
-            -d "{\"message\":\"ci diag ${{ matrix.platform }}\",\"content\":\"$CONTENT\"}" \
-            "https://api.github.com/repos/neekin/seaply-client/contents/ci-diag/${{ matrix.platform }}.log" || true

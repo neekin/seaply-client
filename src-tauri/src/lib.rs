@@ -89,9 +89,12 @@ pub fn run() {
         .expect("启动 Seaply 客户端失败");
 
     app.run(|handle, event| {
-        // macOS：窗口隐藏后点 Dock 图标重新唤出
+        // macOS：窗口隐藏后点 Dock 图标重新唤出（Reopen 为 macOS 专属事件，其余平台跳过）
+        #[cfg(target_os = "macos")]
         if let RunEvent::Reopen { .. } = event {
             show_main(handle);
         }
+        #[cfg(not(target_os = "macos"))]
+        let _ = (handle, event);
     });
 }
