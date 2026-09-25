@@ -62,6 +62,11 @@
     }
     .btn:hover { background: var(--brand-dark); }
     .btn.disabled { background: #c9d4e6; pointer-events: none; }
+    .alt {
+      margin-top: 10px; text-align: center; font-size: 13px; color: var(--brand);
+      text-decoration: none; display: none;
+    }
+    .alt:hover { text-decoration: underline; }
     .note { margin-top: 34px; font-size: 13px; color: var(--muted); line-height: 1.8; }
     .note code { background: #eef2f8; padding: 1px 6px; border-radius: 5px; }
     .all { text-align: center; margin-top: 22px; }
@@ -102,6 +107,7 @@
         </div>
         <div class="meta" id="meta-win"><span class="skel">加载中…</span></div>
         <a class="btn disabled" id="btn-win" href="#">下载 .exe</a>
+        <a class="alt" id="alt-win" href="#">便携版 zip（免安装）</a>
       </div>
     </div>
 
@@ -147,8 +153,15 @@
         const assets = rel.assets || [];
         const mac = assets.find(a => /\.dmg$/i.test(a.name));
         const win = assets.find(a => /\.(exe|msi)$/i.test(a.name));
+        const winZip = assets.find(a => /\.zip$/i.test(a.name));
         setCard("mac", mac, rel.tag_name);
         setCard("win", win, rel.tag_name);
+        if (winZip) {
+          const alt = document.getElementById("alt-win");
+          alt.href = winZip.browser_download_url;
+          alt.textContent = "便携版 zip（免安装）· " + fmtSize(winZip.size);
+          alt.style.display = "block";
+        }
         // 推荐高亮
         const rec = isMac ? "mac" : isWin ? "win" : null;
         if (rec) {
