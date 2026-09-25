@@ -1,10 +1,8 @@
 name: Deploy download page
 
-# 方案：
-# 1) peaceiris 把 download-page/ 推到 gh-pages 分支（内容部署，已验证稳定）
-# 2) 用 GITHUB_TOKEN 调用 Pages enable API 自动开启 Pages
-#    - 若 GitHub 允许，开关直接打开，下载页立即生效
-#    - 若被拒，把 GitHub 返回的真实错误回写到公开文件 ci-pages-enable.log 便于诊断
+# 把 download-page/ 推到 gh-pages 分支（内容部署，已验证稳定）
+# 注意：GitHub 禁止 GITHUB_TOKEN 通过 API 自动启用 Pages（返回 403 Resource not accessible by integration），
+#       因此首次开启 Pages 开关仍需人工在 Settings → Pages 点一次；开启后本工作流自动更新内容。
 # 地址：https://neekin.github.io/seaply-client/
 on:
   push:
@@ -16,8 +14,6 @@ on:
 
 permissions:
   contents: write
-  pages: write
-  id-token: write
 
 jobs:
   deploy:
@@ -32,22 +28,3 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./download-page
           publish_branch: gh-pages
-
-      - name: Enable Pages (auto) + capture error
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          echo "== try enable Pages via API =="
-          RESP=$(curl -sS -X POST \
-            -H "Authorization: Bearer $GITHUB_TOKEN" \
-            -H "Accept: application/vnd.github+json" \
-            -d '{"source":{"branch":"gh-pages","path":"/"}}' \
-            "https://api.github.com/repos/neekin/seaply-client/pages")
-          echo "$RESP"
-          echo "$RESP" > /tmp/enable.json
-          CONTENT=$(base64 -w0 /tmp/enable.json)
-          curl -sS -X PUT \
-            -H "Authorization: Bearer $GITHUB_TOKEN" \
-            -H "Accept: application/vnd.github+json" \
-            -d "{\"message\":\"pages enable diag\",\"content\":\"$CONTENT\"}" \
-            "https://api.github.com/repos/neekin/seaply-client/contents/ci-pages-enable.log" || true
