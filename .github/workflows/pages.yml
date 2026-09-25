@@ -1,8 +1,9 @@
 name: Deploy download page
 
 # 把 download-page/ 推到 gh-pages 分支（内容部署，已验证稳定）
-# 注意：GitHub 禁止 GITHUB_TOKEN 通过 API 自动启用 Pages（返回 403 Resource not accessible by integration），
-#       因此首次开启 Pages 开关仍需人工在 Settings → Pages 点一次；开启后本工作流自动更新内容。
+# 方案 B：用 PAT（仓库 Secrets 中的 PAGES_PAT，需 repo 权限）自动启用 Pages，
+#         实现“连首次开启都全自动”，无需人工在 Settings 点开关。
+# 未配置 PAGES_PAT 时，启用步骤自动跳过，仅部署内容（与旧逻辑一致）。
 # 地址：https://neekin.github.io/seaply-client/
 on:
   push:
@@ -28,3 +29,25 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./download-page
           publish_branch: gh-pages
+
+      # 用 PAT 自动启用 Pages（GITHUB_TOKEN 无此权限，403 Resource not accessible by integration）
+      - name: Enable GitHub Pages via PAT
+        if: ${{ secrets.PAGES_PAT != '' }}
+        env:
+          GH_TOKEN: ${{ secrets.PAGES_PAT }}
+        run: |
+          set -e
+          REPO="neekin/seaply-client"
+          echo "检查 Pages 是否已启用..."
+          if gh api "repos/$REPO/pages" >/dev/null 2>&1; then
+            echo "Pages 已启用，无需操作"
+          else
+            echo "Pages 未启用，使用 PAGES_PAT 自动开启（source: gh-pages / root）..."
+            gh api --method POST "repos/$REPO/pages" \
+              -f "source[branch]=gh-pages" \
+              -f "source[path]=/"
+            echo "已提交启用请求，等待 GitHub 构建..."
+            sleep 20
+          fi
+          echo "最终状态："
+          gh api "repos/$REPO/pages" --jq '.html_url' || echo "（无法读取状态）"
