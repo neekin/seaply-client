@@ -1,8 +1,10 @@
 name: Deploy download page
 
-# 官方 GitHub Pages 部署方式：
-# - actions/configure-pages 在首次运行时自动 enable 仓库的 Pages（无需手动去 Settings 开）
-# - upload-pages-artifact + deploy-pages 把 download-page/ 部署为站点
+# 方案：
+# 1) peaceiris 把 download-page/ 推到 gh-pages 分支（内容部署，已验证稳定）
+# 2) 用 GITHUB_TOKEN 调用 Pages enable API 自动开启 Pages
+#    - 若 GitHub 允许，开关直接打开，下载页立即生效
+#    - 若被拒，把 GitHub 返回的真实错误回写到公开文件 ci-pages-enable.log 便于诊断
 # 地址：https://neekin.github.io/seaply-client/
 on:
   push:
@@ -12,38 +14,40 @@ on:
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 
-# Pages 部署必需的两个权限
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
-concurrency:
-  group: pages
-  cancel-in-progress: false
-
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Configure Pages (auto-enable)
-        uses: actions/configure-pages@v5
-
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+      - name: Deploy content to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
         with:
-          path: ./download-page
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./download-page
+          publish_branch: gh-pages
 
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+      - name: Enable Pages (auto) + capture error
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "== try enable Pages via API =="
+          RESP=$(curl -sS -X POST \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -d '{"source":{"branch":"gh-pages","path":"/"}}' \
+            "https://api.github.com/repos/neekin/seaply-client/pages")
+          echo "$RESP"
+          echo "$RESP" > /tmp/enable.json
+          CONTENT=$(base64 -w0 /tmp/enable.json)
+          curl -sS -X PUT \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -d "{\"message\":\"pages enable diag\",\"content\":\"$CONTENT\"}" \
+            "https://api.github.com/repos/neekin/seaply-client/contents/ci-pages-enable.log" || true
