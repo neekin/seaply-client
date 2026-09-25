@@ -57,3 +57,28 @@ jobs:
           releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
+
+      # Windows 便携版：把可直接运行的 exe（前端资源已嵌入二进制）连同 WebView2Loader.dll 打进 zip，免安装
+      - name: Create portable zip (Windows)
+        if: matrix.platform == 'windows-latest'
+        shell: pwsh
+        run: |
+          $ver = (Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).version
+          $out = "Seaply.Desk_${ver}_x64_portable.zip"
+          $exe = "src-tauri/target/release/seaply-client.exe"
+          if (-not (Test-Path $exe)) { throw "未找到可执行文件: $exe" }
+          $items = @($exe)
+          $dll = "src-tauri/target/release/WebView2Loader.dll"
+          if (Test-Path $dll) { $items += $dll }
+          Compress-Archive -Path $items -DestinationPath $out -Force
+          "已生成: $out"
+          Get-Item $out | Select-Object Name, Length | Format-List
+
+      - name: Upload portable zip to release
+        if: matrix.platform == 'windows-latest'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $ver = (Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).version
+          gh release upload "${{ github.ref_name }}" "Seaply.Desk_${ver}_x64_portable.zip" --clobber
